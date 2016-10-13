@@ -57,7 +57,6 @@ function declaratorParser (input) {
 function lambdaParser (input) {
   input[1] = input[1].replace('lambda', '')
   var expr = expressionParser(input)
-  console.log('lambda',expr)
   var node = {
     'args': expr[0][0],
     'expression': expr[0][1]
@@ -80,9 +79,9 @@ function operatorParser (input) {
 
 function subExpressionParser (input) {
   var preParse
-  preParse = bracketParser(input)
-  if (preParse) input = preParse
   preParse = spaceParser(input)
+  if (preParse) input = preParse
+  preParse = bracketParser(input)
   if (preParse) input = preParse
   preParse = keywordParser(input)
   if (preParse) return preParse
@@ -90,20 +89,15 @@ function subExpressionParser (input) {
   if (preParse) return preParse
   preParse = numberParser(input)
   if (preParse) return preParse
-  preParse = expressionParser(input)
-  if (preParse) return preParse
-  return null
 }
 
 function expressionParser (input) {
   if (typeof input === 'string') input = ['', input]
   var arr = []
   while (input[1].length > 0) {
-    console.log('inp', input[1])
     var subExpr = subExpressionParser(input)
-    console.log('postprocess', subExpr[0], subExpr[1])
     input = [subExpr[0], subExpr[1].toString()]
-    if (subExpr[0]) { arr.push(subExpr[0]); console.log('array', arr) }
+    if (subExpr[0]) arr.push(subExpr[0])
     else break
   }
   return [arr, input[1]]
