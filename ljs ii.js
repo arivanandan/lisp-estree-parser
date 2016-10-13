@@ -103,20 +103,16 @@ var operators = ['*', '+', '-', '/', '<', '>', '%']
 
 const readline = require('readline')
 const rl =  readline.createInterface({
-	input: process.stdin,
-	output: process.stdout
+  input: process.stdin,
+  output: process.stdout
 })
 
 rl.on('line', (input) => {
-	input = input.trim()
+  input = input.trim()
   if (input === 'exit') rl.close()
-  var ast = {
-    'type': 'Program',
-    'body': [],
-    'script': 'LISP'
-  }
-	try { var solution = expressionParser(input)[0] }
+  var ast = { 'type': 'Program', 'body': [], 'script': 'LISP' }
+  try { var solution = expressionParser(input)[0] }
   catch (err) { console.log('Incorrect Syntax Mate', err) }
   ast.body = solution
-	if (solution !== undefined && input !== 'exit') console.log(JSON.stringify(ast, null, 2))
+  if (solution !== undefined && input !== 'exit') console.log(JSON.stringify(ast, null, 2))
 })
