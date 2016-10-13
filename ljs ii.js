@@ -3,6 +3,7 @@ function spaceParser (input) {
   if (spaceRegEx.test(input[1])) return [input[0], input[1].replace(spaceRegEx, '')]
   return null
 }
+
 function numberParser (input) {
   var numRegEx = (/^[-+]?(\d+(\.\d*)?|\.\d+)/)
   var num = numRegEx.exec(input[1])
@@ -16,10 +17,11 @@ function numberParser (input) {
   }
   return null
 }
+
 function identifierParser (input) {
   var idRegEx = (/^\w+/)
   var word = idRegEx.exec(input[1])
-  if (word && !(/^\d/.test(word)) && !~keywords.indexOf(word[0])) {
+  if (word && !(/^\d/.test(word))) {
     var node = {
       type: 'Identifier',
       name: word.toString()
@@ -28,18 +30,20 @@ function identifierParser (input) {
   }
   return null
 }
+
 function keywordParser (input) {
   var kwRegEx = (/^\w+|^[*+-<>%\/]/)
   var word = kwRegEx.exec(input[1])
   if (word && !!~keywords.indexOf(word[0])) {
-    if (word[0] === 'define') input = declarator(input)
-    if (word[0] === 'lambda') input = lambda(input)
+    if (word[0] === 'define') input = declaratorParser(input)
+    if (word[0] === 'lambda') input = lambdaParser(input)
     if (!!~operators.indexOf(word[0])) input = operatorParser(input)
     return input
   }
   return null
 }
-function declarator (input) {
+
+function declaratorParser (input) {
   input[1] = input[1].replace('define', '')
   var expr = expressionParser(input)
   var node = {
@@ -49,15 +53,18 @@ function declarator (input) {
   }
   return [node, expr[1]]
 }
-function lambda(input) {
+
+function lambdaParser (input) {
   input[1] = input[1].replace('lambda', '')
   var expr = expressionParser(input)
+  console.log('lambda',expr)
   var node = {
     'args': expr[0][0],
     'expression': expr[0][1]
   }
   return [node, expr[1]]
 }
+
 function operatorParser (input) {
   var operator = input[1].charAt(0)
   input[1] = input[1].replace(operator, '')
@@ -70,10 +77,11 @@ function operatorParser (input) {
   }
   return [node, expr[1]]
 }
+
 function subExpressionParser (input) {
   var preParse
-  preprase = bracketParser(input)
-  if (preParse) return preParse
+  preParse = bracketParser(input)
+  if (preParse) input = preParse
   preParse = spaceParser(input)
   if (preParse) input = preParse
   preParse = keywordParser(input)
@@ -84,39 +92,45 @@ function subExpressionParser (input) {
   if (preParse) return preParse
   preParse = expressionParser(input)
   if (preParse) return preParse
-  //return null
+  return null
 }
+
 function expressionParser (input) {
   if (typeof input === 'string') input = ['', input]
   var arr = []
   while (input[1].length > 0) {
+    console.log('inp', input[1])
     var subExpr = subExpressionParser(input)
+    console.log('postprocess', subExpr[0], subExpr[1])
     input = [subExpr[0], subExpr[1].toString()]
-    if (subExpr[0]) arr.push(subExpr[0])
+    if (subExpr[0]) { arr.push(subExpr[0]); console.log('array', arr) }
     else break
   }
   return [arr, input[1]]
 }
+
 function bracketParser (input) {
   if (input[1].charAt(0) === '(') {
     expr = slicer(input[1])
-    if (expr[1] !== '') input[1] = expr[0]+' '+expr[1]
+    if (expr[1] !== '') input[1] = expr[0] + ' ' + expr[1]
     else input[1] = expr[0]
     return input
   }
   return null
 }
+
 function slicer (input) {
   var openingParen = 1
   var i = 1
   while (i < input.length) {
     if (input.charAt(i) === '(') openingParen++
     if (input.charAt(i) === ')') openingParen--
-    if (openingParen === 0) return [input.slice(1, i), input.substr(i+1)]
+    if (openingParen === 0) return [input.slice(1, i), input.substr(i + 1)]
     i++
   }
-  return input.slice(1, i)+' '+input.substr(i+1)
+  return input.slice(1, i) + ' ' + input.substr(i + 1)
 }
+
 var keywords = ['define', 'lambda', '*', '+', '-', '/', '<', '>', '%']
 var operators = ['*', '+', '-', '/', '<', '>', '%']
 
@@ -126,7 +140,7 @@ const rl =  readline.createInterface({
 	output: process.stdout
 })
 
-rl.on ('line', (input) => {
+rl.on('line', (input) => {
 	input = input.trim()
   if (input === 'exit') rl.close()
   var ast = {
