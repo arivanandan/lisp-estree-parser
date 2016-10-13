@@ -7,60 +7,40 @@ function spaceParser (input) {
 function numberParser (input) {
   var numRegEx = (/^[-+]?(\d+(\.\d*)?|\.\d+)/)
   var num = numRegEx.exec(input[1])
-  if (num) {
-    var node = {
-      type: 'Literal',
-      value: parseFloat(num[0], 10),
-      raw: num[0]
-    }
-    return [node, input[1].replace(num[0], '')]
-  }
-  return null
+  if (!num) return null
+  var node = { type: 'Literal', value: parseFloat(num[0], 10), raw: num[0] }
+  return [node, input[1].replace(num[0], '')]
 }
 
 function identifierParser (input) {
   var idRegEx = (/^\w+/)
   var word = idRegEx.exec(input[1])
-  if (word && !(/^\d/.test(word))) {
-    var node = {
-      type: 'Identifier',
-      name: word.toString()
-    }
-    return [node, input[1].replace(word, '')]
-  }
-  return null
+  if (!word || (/^\d/.test(word))) return null
+  var node = { type: 'Identifier', name: word.toString() }
+  return [node, input[1].replace(word, '')]
 }
 
 function keywordParser (input) {
   var kwRegEx = (/^\w+|^[*+-<>%\/]/)
   var word = kwRegEx.exec(input[1])
-  if (word && !!~keywords.indexOf(word[0])) {
-    if (word[0] === 'define') input = declaratorParser(input)
-    if (word[0] === 'lambda') input = lambdaParser(input)
-    if (!!~operators.indexOf(word[0])) input = operatorParser(input)
-    return input
-  }
-  return null
+  if (!word || !~keywords.indexOf(word[0])) return null
+  if (word[0] === 'define') input = declaratorParser(input)
+  if (word[0] === 'lambda') input = lambdaParser(input)
+  if (!!~operators.indexOf(word[0])) input = operatorParser(input)
+  return input
 }
 
 function declaratorParser (input) {
   input[1] = input[1].replace('define', '')
   var expr = expressionParser(input)
-  var node = {
-    'type': 'Declaration',
-    'id': expr[0][0],
-    'init': expr[0][1]
-  }
+  var node = { 'type': 'Declaration', 'id': expr[0][0], 'init': expr[0][1] }
   return [node, expr[1]]
 }
 
 function lambdaParser (input) {
   input[1] = input[1].replace('lambda', '')
   var expr = expressionParser(input)
-  var node = {
-    'args': expr[0][0],
-    'expression': expr[0][1]
-  }
+  var node = { 'args': expr[0][0], 'expression': expr[0][1] }
   return [node, expr[1]]
 }
 
@@ -68,12 +48,7 @@ function operatorParser (input) {
   var operator = input[1].charAt(0)
   input[1] = input[1].replace(operator, '')
   var expr = expressionParser(input)
-  var node = {
-    'type': 'Binary Expression',
-    'operator': operator,
-    'left': expr[0][0],
-    'right': expr[0][1]
-  }
+  var node = { 'type': 'Binary Expression', 'operator': operator, 'left': expr[0][0], 'right': expr[0][1] }
   return [node, expr[1]]
 }
 
@@ -104,13 +79,11 @@ function expressionParser (input) {
 }
 
 function bracketParser (input) {
-  if (input[1].charAt(0) === '(') {
-    expr = slicer(input[1])
-    if (expr[1] !== '') input[1] = expr[0] + ' ' + expr[1]
-    else input[1] = expr[0]
-    return input
-  }
-  return null
+  if (input[1].charAt(0) !== '(') return null
+  expr = slicer(input[1])
+  if (expr[1] !== '') input[1] = expr[0] + ' ' + expr[1]
+  else input[1] = expr[0]
+  return input
 }
 
 function slicer (input) {
