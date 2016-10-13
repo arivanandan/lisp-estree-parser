@@ -32,14 +32,14 @@ function keywordParser (input) {
 
 function declaratorParser (input) {
   input[1] = input[1].replace('define', '')
-  var expr = expressionParser(input)
+  var expr = seParser(input)
   var node = { 'type': 'Declaration', 'id': expr[0][0], 'init': expr[0][1] }
   return [node, expr[1]]
 }
 
 function lambdaParser (input) {
   input[1] = input[1].replace('lambda', '')
-  var expr = expressionParser(input)
+  var expr = seParser(input)
   var node = { 'args': expr[0][0], 'expression': expr[0][1] }
   return [node, expr[1]]
 }
@@ -47,16 +47,14 @@ function lambdaParser (input) {
 function operatorParser (input) {
   var operator = input[1].charAt(0)
   input[1] = input[1].replace(operator, '')
-  var expr = expressionParser(input)
-  var node = { 'type': 'Binary Expression', 'operator': operator, 'left': expr[0][0], 'right': expr[0][1] }
+  var expr = seParser(input)
+  var node = { 'type': 'Expression', 'operator': operator, 'args': expr[0] }
   return [node, expr[1]]
 }
 
-function subExpressionParser (input) {
+function atomParser (input) {
   var preParse
   preParse = spaceParser(input)
-  if (preParse) input = preParse
-  preParse = bracketParser(input)
   if (preParse) input = preParse
   preParse = keywordParser(input)
   if (preParse) return preParse
@@ -64,26 +62,29 @@ function subExpressionParser (input) {
   if (preParse) return preParse
   preParse = numberParser(input)
   if (preParse) return preParse
+  preParse = expressionParser(input)
+  if (preParse) return preParse
 }
 
 function expressionParser (input) {
   if (typeof input === 'string') input = ['', input]
+  if (input[1].charAt(0) !== '(') return null
+  expr = slicer(input[1])
+  if (expr[1] !== '') input[1] = expr[0] + ' ' + expr[1]
+  else input[1] = expr[0]
+  out = seParser(input)
+  return [out[0], out[1]]
+}
+
+function seParser (input) {
   var arr = []
   while (input[1].length > 0) {
-    var subExpr = subExpressionParser(input)
+    var subExpr = atomParser(input)
     input = [subExpr[0], subExpr[1].toString()]
     if (subExpr[0]) arr.push(subExpr[0])
     else break
   }
   return [arr, input[1]]
-}
-
-function bracketParser (input) {
-  if (input[1].charAt(0) !== '(') return null
-  expr = slicer(input[1])
-  if (expr[1] !== '') input[1] = expr[0] + ' ' + expr[1]
-  else input[1] = expr[0]
-  return input
 }
 
 function slicer (input) {
