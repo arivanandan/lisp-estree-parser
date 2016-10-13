@@ -40,7 +40,7 @@ function declaratorParser (input) {
 function lambdaParser (input) {
   input[1] = input[1].replace('lambda', '')
   var expr = seParser(input)
-  var node = { 'args': expr[0][0], 'expression': expr[0][1] }
+  var node = { 'args': expr[0][0], 'Return Expression': expr[0][1] }
   return [node, expr[1]]
 }
 
@@ -69,11 +69,18 @@ function atomParser (input) {
 function expressionParser (input) {
   if (typeof input === 'string') input = ['', input]
   if (input[1].charAt(0) !== '(') return null
+  var arr = []
+  var rest
   expr = slicer(input[1])
-  if (expr[1] !== '') input[1] = expr[0] + ' ' + expr[1]
-  else input[1] = expr[0]
+  if (expr[1] !== '') rest = expr[1]
+  input[1] = expr[0]
   out = seParser(input)
-  return [out[0], out[1]]
+  arr.push(out[0])
+  if (rest) {
+    input[1] = rest
+    arr.push(seParser(input)[0])
+  }
+  return [arr, out[1]]
 }
 
 function seParser (input) {
