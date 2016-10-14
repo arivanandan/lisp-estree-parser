@@ -33,6 +33,7 @@ function keywordParser (input) {
 function declaratorParser (input) {
   input[1] = input[1].replace('define', '')
   var expr = seParser(input)
+  if (!expr) return null
   var node = { 'type': 'Declaration', 'id': expr[0][0], 'init': expr[0][1] }
   return [node, expr[1]]
 }
@@ -40,6 +41,7 @@ function declaratorParser (input) {
 function lambdaParser (input) {
   input[1] = input[1].replace('lambda', '')
   var expr = seParser(input)
+  if (!expr) return null
   var node = { 'args': expr[0][0], 'Return Expression': expr[0][1] }
   return [node, expr[1]]
 }
@@ -48,6 +50,7 @@ function operatorParser (input) {
   var operator = input[1].charAt(0)
   input[1] = input[1].replace(operator, '')
   var expr = seParser(input)
+  if (!expr) return null
   var node = { 'type': 'Expression', 'operator': operator, 'args': expr[0] }
   return [node, expr[1]]
 }
@@ -64,21 +67,20 @@ function atomParser (input) {
   if (preParse) return preParse
   preParse = expressionParser(input)
   if (preParse) return preParse
+  return null
 }
 
 function expressionParser (input) {
   if (typeof input === 'string') input = ['', input]
   if (input[1].charAt(0) !== '(') return null
   var arr = []
-  var rest
-  expr = slicer(input[1])
-  if (expr[1] !== '') rest = expr[1]
+  var expr = slicer(input[1])
   input[1] = expr[0]
   out = seParser(input)
   arr.push(out[0])
-  if (rest) {
-    input[1] = rest
-    arr.push(seParser(input)[0])
+  if (expr[1]) {
+    input[1] = expr[1]
+    arr.push(seParser(input)[0].pop())
   }
   return [arr, out[1]]
 }
@@ -120,7 +122,7 @@ rl.on('line', (input) => {
   if (input === 'exit') rl.close()
   var ast = { 'type': 'Program', 'body': [], 'script': 'LISP' }
   try { var solution = expressionParser(input)[0] }
-  catch (err) { console.log('Incorrect Syntax Mate', err) }
+  catch (err) { if (input !== 'exit') console.log('Incorrect Syntax Mate', err) }
   ast.body = solution
   if (solution !== undefined && input !== 'exit') console.log(JSON.stringify(ast, null, 2))
 })
