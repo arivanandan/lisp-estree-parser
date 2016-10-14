@@ -105,3 +105,22 @@ function slicer (input) {
   }
   return input.slice(1, i) + ' ' + input.substr(i + 1)
 }
+
+var keywords = ['define', 'lambda', '*', '+', '-', '/', '<', '>', '%']
+var operators = ['*', '+', '-', '/', '<', '>', '%']
+
+const readline = require('readline')
+const rl =  readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+})
+
+rl.on('line', (input) => {
+  input = input.trim()
+  if (input === 'exit') rl.close()
+  var ast = { 'type': 'Program', 'body': [], 'script': 'LISP' }
+  try { var solution = expressionParser(input)[0] }
+  catch (err) { if (input !== 'exit') console.log('Incorrect Syntax Mate', err) }
+  ast.body = solution
+  if (solution !== undefined && input !== 'exit') console.log(JSON.stringify(ast, null, 2))
+})
