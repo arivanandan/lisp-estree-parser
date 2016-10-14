@@ -1,28 +1,28 @@
 function spaceParser (input) {
   var spaceRegEx = (/^\s+/)
-  if (spaceRegEx.test(input[1])) return [input[0], input[1].replace(spaceRegEx, '')]
+  if (spaceRegEx.test(input)) return [null, input.replace(spaceRegEx, '')]
   return null
 }
 
 function numberParser (input) {
   var numRegEx = (/^[-+]?(\d+(\.\d*)?|\.\d+)/)
-  var num = numRegEx.exec(input[1])
+  var num = numRegEx.exec(input)
   if (!num) return null
   var node = { type: 'Literal', value: parseFloat(num[0], 10), raw: num[0] }
-  return [node, input[1].replace(num[0], '')]
+  return [node, input.replace(num[0], '')]
 }
 
 function identifierParser (input) {
   var idRegEx = (/^\w+/)
-  var word = idRegEx.exec(input[1])
+  var word = idRegEx.exec(input)
   if (!word || (/^\d/.test(word))) return null
   var node = { type: 'Identifier', name: word.toString() }
-  return [node, input[1].replace(word, '')]
+  return [node, input.replace(word, '')]
 }
 
 function keywordParser (input) {
   var kwRegEx = (/^\w+|^[*+-<>%\/]/)
-  var word = kwRegEx.exec(input[1])
+  var word = kwRegEx.exec(input)
   if (!word || !~keywords.indexOf(word[0])) return null
   if (word[0] === 'define') input = declaratorParser(input)
   if (word[0] === 'lambda') input = lambdaParser(input)
@@ -31,7 +31,7 @@ function keywordParser (input) {
 }
 
 function declaratorParser (input) {
-  input[1] = input[1].replace('define', '')
+  input = input.replace('define', '')
   var expr = seParser(input)
   if (!expr) return null
   var node = { 'type': 'Declaration', 'id': expr[0][0], 'init': expr[0][1] }
@@ -39,7 +39,7 @@ function declaratorParser (input) {
 }
 
 function lambdaParser (input) {
-  input[1] = input[1].replace('lambda', '')
+  input = input.replace('lambda', '')
   var expr = seParser(input)
   if (!expr) return null
   var node = { 'args': expr[0][0], 'Return Expression': expr[0][1] }
@@ -47,8 +47,8 @@ function lambdaParser (input) {
 }
 
 function operatorParser (input) {
-  var operator = input[1].charAt(0)
-  input[1] = input[1].replace(operator, '')
+  var operator = input.charAt(0)
+  input = input.replace(operator, '')
   var expr = seParser(input)
   if (!expr) return null
   var node = { 'type': 'Expression', 'operator': operator, 'args': expr[0] }
@@ -58,7 +58,7 @@ function operatorParser (input) {
 function atomParser (input) {
   var preParse
   preParse = spaceParser(input)
-  if (preParse) input = preParse
+  if (preParse) input = preParse[1]
   preParse = keywordParser(input)
   if (preParse) return preParse
   preParse = identifierParser(input)
@@ -71,15 +71,14 @@ function atomParser (input) {
 }
 
 function expressionParser (input) {
-  if (typeof input === 'string') input = ['', input]
-  if (input[1].charAt(0) !== '(') return null
+  if (input.charAt(0) !== '(') return null
   var arr = []
-  var expr = slicer(input[1])
-  input[1] = expr[0]
+  var expr = slicer(input)
+  input = expr[0]
   out = seParser(input)
   arr.push(out[0])
   if (expr[1]) {
-    input[1] = expr[1]
+    input = expr[1]
     arr.push(seParser(input)[0].pop())
   }
   return [arr, out[1]]
@@ -87,13 +86,13 @@ function expressionParser (input) {
 
 function seParser (input) {
   var arr = []
-  while (input[1].length > 0) {
+  while (input.length > 0) {
     var subExpr = atomParser(input)
-    input = [subExpr[0], subExpr[1].toString()]
+    input = subExpr[1].toString()
     if (subExpr[0]) arr.push(subExpr[0])
     else break
   }
-  return [arr, input[1]]
+  return [arr, input]
 }
 
 function slicer (input) {
@@ -107,22 +106,3 @@ function slicer (input) {
   }
   return input.slice(1, i) + ' ' + input.substr(i + 1)
 }
-
-var keywords = ['define', 'lambda', '*', '+', '-', '/', '<', '>', '%']
-var operators = ['*', '+', '-', '/', '<', '>', '%']
-
-const readline = require('readline')
-const rl =  readline.createInterface({
-  input: process.stdin,
-  output: process.stdout
-})
-
-rl.on('line', (input) => {
-  input = input.trim()
-  if (input === 'exit') rl.close()
-  var ast = { 'type': 'Program', 'body': [], 'script': 'LISP' }
-  try { var solution = expressionParser(input)[0] }
-  catch (err) { if (input !== 'exit') console.log('Incorrect Syntax Mate', err) }
-  ast.body = solution
-  if (solution !== undefined && input !== 'exit') console.log(JSON.stringify(ast, null, 2))
-})
