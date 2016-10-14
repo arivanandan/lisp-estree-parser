@@ -24,10 +24,9 @@ function keywordParser (input) {
   var kwRegEx = (/^\w+|^[*+-<>%\/]/)
   var word = kwRegEx.exec(input)
   if (!word || !~keywords.indexOf(word[0])) return null
-  if (word[0] === 'define') input = declaratorParser(input)
-  if (word[0] === 'lambda') input = lambdaParser(input)
-  if (!!~operators.indexOf(word[0])) input = operatorParser(input)
-  return input
+  if (word[0] === 'define') return declaratorParser(input)
+  if (word[0] === 'lambda') return lambdaParser(input)
+  if (!!~operators.indexOf(word[0])) return operatorParser(input)
 }
 
 function declaratorParser (input) {
