@@ -36,7 +36,6 @@ function keywordParser (input) {
   if (word[0] === 'lambda') return lambdaParser(input)
   if (word[0] === 'if') return ifParser(input)
   if (!!~arithmeticOperators.indexOf(word[0])) return arithmeticParser(input)
-  if (!!~binaryOperations.indexOf(word[0])) return binaryParser(input)
   if (!!~unaryOperations.indexOf(word[0])) return unaryParser(input)
 }
 
@@ -44,7 +43,7 @@ function declaratorParser (input) {
   input = input.replace('define', '')
   var expr = seParser(input)
   if (!expr) return null
-  var node = { 'type': 'Declaration', 'id': expr[0][0], 'init': expr[0][1] }
+  var node = { 'type': 'VariableDeclarator', 'id': expr[0][0], 'init': expr[0][1] }
   return [node, expr[1]]
 }
 
@@ -52,26 +51,25 @@ function lambdaParser (input) {
   input = input.replace('lambda', '')
   var expr = seParser(input)
   if (!expr) return null
-  var node = { 'args': expr[0][0], 'Return Expression': expr[0][1] }
+  var body = expr[0][0][expr[0][0].length - 1]
+  expr[0][0].splice(-1, 1)
+  var node = { 'type': 'ArrowFunctionExpression', 'id':null, 'params': expr[0][0], 'body': body }
   return [node, expr[1]]
 }
 
 function arithmeticParser (input) {
-  var operator = input.charAt(0)
+  var operator = input.split(' ').shift()
   input = input.replace(operator, '')
   var expr = seParser(input)
   if (!expr) return null
-  var node = { 'type': 'Expression', 'operator': operator, 'args': expr[0] }
+  if (expr[0].length < 3) var node = binaryParser(expr[0], operator)
+  else var node = reduceArr(expr[0], operator)
   return [node, expr[1]]
 }
 
-function binaryParser (input) {
-  var operator = input.charAt(0)
-  input = input.replace(operator, '')
-  var expr = seParser(input)
-  if (!expr) return null
-  var node = { 'type': 'BinaryExpression', 'operator': operator, 'left': expr[0][0], 'right': expr[0][1] }
-  return [node, expr[1]]
+function binaryParser (input, word) {
+  var node = { 'type': 'BinaryExpression', 'operator': word, 'left': input[0], 'right': input[1] }
+  return node
 }
 
 function unaryParser (input) {
@@ -83,6 +81,21 @@ function unaryParser (input) {
   return [node, expr[1]]
 }
 
+function reduceArr (input, word) {
+  var node = { "type": "ExpressionStatement",
+  "expression": { "type": "CallExpression",
+  "callee": { "type": "MemberExpression", "computed": false,
+  "object": { "type": "Identifier", "name": 'input' },
+  "property": { "type": "Identifier", "name": "reduce" }},
+  "arguments": [{ "type": "ArrowFunctionExpression", "id": null,
+  "params": [{ "type": "Identifier", "name": "x" },
+  { "type": "Identifier", "name": "y" }],
+  "body": { "type": "BinaryExpression", "operator": word,
+  "left": { "type": "Identifier", "name": "x" },
+  "right": { "type": "Identifier", "name": "y" }}}]}}
+  return node
+}
+
 function ifParser (input) {
   input = input.replace('if', '')
   var expr = seParser(input)
@@ -91,7 +104,7 @@ function ifParser (input) {
 }
 
 function atomParser (input) {
-  var selectedParser = parserSelector([keywordParser, identifierParser, numberParser, stringParser, expressionParser])
+  var selectedParser = parserSelector(keywordParser, identifierParser, numberParser, stringParser, expressionParser)
   var out = selectedParser(input)
   if (out) return out
   return null
@@ -124,7 +137,7 @@ function seParser (input) {
   return [arr, input]
 }
 
-function parserSelector (parsers) {
+function parserSelector (...parsers) {
   return function (string) {
     if (spaceParser(string)) string = spaceParser(string)[1]
     for (var parser of parsers) {
@@ -149,17 +162,16 @@ function slicer (input) {
 
 var keywords = ['define', 'lambda', '*', '+', '-', '/', '<', '>', '<=', '>=', '%', 'if',
 'length', 'abs', 'append', 'pow', 'min', 'max', 'round', 'not', 'quote']
-var binaryOperations = ['<', '>', '<=', '>=', 'pow', 'append']
 var unaryOperations = ['length', 'abs', 'round', 'not']
-var arithmeticOperators = ['*', '+', '-', '/', '%']
+var arithmeticOperators = ['*', '+', '-', '/', '%', '<', '>', '<=', '>=', 'pow', 'append']
 
 const readline = require('readline')
 const rl =  readline.createInterface({
   input: process.stdin,
   output: process.stdout
 })
-
 rl.on('line', (input) => {
+
   input = input.trim()
   if (input === 'exit') rl.close()
   var ast = { 'type': 'Program', 'body': [], 'script': 'LISP' }
