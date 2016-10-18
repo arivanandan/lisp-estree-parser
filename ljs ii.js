@@ -83,16 +83,16 @@ function unaryParser (input) {
 
 function reduceArr (input, word) {
   var node = { "type": "ExpressionStatement",
-  "expression": { "type": "CallExpression",
-  "callee": { "type": "MemberExpression", "computed": false,
-  "object": { "type": "Identifier", "name": 'input' },
-  "property": { "type": "Identifier", "name": "reduce" }},
-  "arguments": [{ "type": "ArrowFunctionExpression", "id": null,
-  "params": [{ "type": "Identifier", "name": "x" },
-  { "type": "Identifier", "name": "y" }],
-  "body": { "type": "BinaryExpression", "operator": word,
-  "left": { "type": "Identifier", "name": "x" },
-  "right": { "type": "Identifier", "name": "y" }}}]}}
+    "expression": { "type": "CallExpression",
+      "callee": { "type": "MemberExpression", "computed": false,
+      "object": { "type": "Identifier", "name": 'input' },
+      "property": { "type": "Identifier", "name": "reduce" }},
+    "arguments": [{ "type": "ArrowFunctionExpression", "id": null,
+      "params": [{ "type": "Identifier", "name": "x" },
+      { "type": "Identifier", "name": "y" }],
+    "body": { "type": "BinaryExpression", "operator": word,
+    "left": { "type": "Identifier", "name": "x" },
+    "right": { "type": "Identifier", "name": "y" }}}]}}
   return node
 }
 
