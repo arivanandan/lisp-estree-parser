@@ -1,1 +1,1 @@
-Parses basic LISP statements and generates AST.
+Parses basic (modified define, lambda) LISP statements and generates AST.
