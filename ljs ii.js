@@ -137,15 +137,9 @@ function seParser (input) {
   return [arr, input]
 }
 
-function parserSelector (...parsers) {
-  return function (string) {
-    if (spaceParser(string)) string = spaceParser(string)[1]
-    for (var parser of parsers) {
-      var preParse = parser(string)
-      if (preParse) return preParse
-    }
-    return null
-  }
+var parserSelector = (...parsers) => function (input) {
+  if (spaceParser(input)) input = spaceParser(input)[1]
+  return parsers.reduce((acc, parser) => acc === null ? parser(input) : acc, null )
 }
 
 function slicer (input) {
