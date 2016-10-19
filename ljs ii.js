@@ -29,31 +29,33 @@ function stringParser (input) {
 }
 
 function keywordParser (input) {
-  var kwRegEx = (/^\w+|^[*+-<>%\/]/)
+  var kwRegEx = (/^\w+|^[*+-<>%=\/]+/)
   var word = kwRegEx.exec(input)
   if (!word || !~keywords.indexOf(word[0])) return null
-  if (word[0] === 'define') return declaratorParser(input)
-  if (word[0] === 'lambda') return lambdaParser(input)
+  if (word[0] === 'const') return declaratorParser(input)
+  if (word[0] === '=>')  return lambdaParser(input)
   if (word[0] === 'if') return ifParser(input)
   if (!!~arithmeticOperators.indexOf(word[0])) return arithmeticParser(input)
   if (!!~unaryOperations.indexOf(word[0])) return unaryParser(input)
 }
 
 function declaratorParser (input) {
-  input = input.replace('define', '')
+  input = input.replace('const', '')
   var expr = seParser(input)
   if (!expr) return null
-  var node = { 'type': 'VariableDeclarator', 'id': expr[0][0], 'init': expr[0][1] }
+  var node = { 'type': 'VariableDeclaration', 'declarations': [{
+    'type': 'VariableDeclarator', 'id': expr[0][0], 'init': expr[0][1] }]}
   return [node, expr[1]]
 }
 
 function lambdaParser (input) {
-  input = input.replace('lambda', '')
+  input = input.replace('=>', '')
   var expr = seParser(input)
   if (!expr) return null
   var body = expr[0][0][expr[0][0].length - 1]
   expr[0][0].splice(-1, 1)
-  var node = { 'type': 'ArrowFunctionExpression', 'id':null, 'params': expr[0][0], 'body': body }
+  var node = { 'type': 'ArrowFunctionExpression', 'id':null, 'params': expr[0][0], 'body': {
+    'type': 'BlockStatement', 'body': body }}
   return [node, expr[1]]
 }
 
@@ -67,6 +69,7 @@ function arithmeticParser (input) {
   return [node, expr[1]]
 }
 
+// two argument operations
 function binaryParser (input, word) {
   var node = { 'type': 'BinaryExpression', 'operator': word, 'left': input[0], 'right': input[1] }
   return node
@@ -81,6 +84,7 @@ function unaryParser (input) {
   return [node, expr[1]]
 }
 
+// operations > 2 args; array reduce
 function reduceArr (input, word) {
   var node = { "type": "ExpressionStatement",
     "expression": { "type": "CallExpression",
@@ -103,6 +107,7 @@ function ifParser (input) {
   return [node, expr[1]]
 }
 
+// selects and calls a single parser
 function atomParser (input) {
   var selectedParser = parserSelector(keywordParser, identifierParser, numberParser, stringParser, expressionParser)
   var out = selectedParser(input)
@@ -110,6 +115,7 @@ function atomParser (input) {
   return null
 }
 
+// strips brackets, stores ast for multiple expressions, calls seParser
 function expressionParser (input) {
   if (input.charAt(0) !== '(') return null
   var arr = []
@@ -126,6 +132,7 @@ function expressionParser (input) {
   return [arr, out[1]]
 }
 
+// calls atom parser and stores ast for single expression
 function seParser (input) {
   var arr = []
   while (input.length > 0) {
@@ -137,11 +144,13 @@ function seParser (input) {
   return [arr, input]
 }
 
+// returns parser that'd evaluate the next atom
 var parserSelector = (...parsers) => function (input) {
   if (spaceParser(input)) input = spaceParser(input)[1]
   return parsers.reduce((acc, parser) => acc === null ? parser(input) : acc, null )
 }
 
+// strips brackets, returns elements inside; called by expression parser
 function slicer (input) {
   var openingParen = 1
   var i = 1
@@ -154,11 +163,12 @@ function slicer (input) {
   return input.slice(1, i) + ' ' + input.substr(i + 1)
 }
 
-var keywords = ['define', 'lambda', '*', '+', '-', '/', '<', '>', '<=', '>=', '%', 'if',
+var keywords = ['const', '=>', '*', '+', '-', '/', '<', '>', '<=', '>=', '%', 'if',
 'length', 'abs', 'append', 'pow', 'min', 'max', 'round', 'not', 'quote']
 var unaryOperations = ['length', 'abs', 'round', 'not']
 var arithmeticOperators = ['*', '+', '-', '/', '%', '<', '>', '<=', '>=', 'pow', 'append']
 
+// repl
 const readline = require('readline')
 const rl =  readline.createInterface({
   input: process.stdin,
