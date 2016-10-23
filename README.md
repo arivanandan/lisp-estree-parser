@@ -1,4 +1,4 @@
-Parses basic LISP statements and generates AST.
+Parses basic LISP statements and generates AST (as would be from http://esprima.org/demo/parse.html) which is then turned into JS using escodegen (https://github.com/estools/escodegen) and saved into an out.js file. Run in nodejs.                              
 Modifications : 'define' keyword is to be written as 'const', 
                 'lambda' keyword is to be written as the arrow operator, '=>'. 
 Input examples : (+ 5 5), 
