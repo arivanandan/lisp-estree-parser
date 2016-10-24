@@ -6,13 +6,13 @@ var variables = []
 var consoleInput = []
 
 function spaceParser (input) {
-  const spaceRegEx = (/^\s+/)
+  var spaceRegEx = (/^\s+/)
   if (spaceRegEx.test(input)) return [null, input.replace(spaceRegEx, '')]
   return null
 }
 
 function numberParser (input) {
-  const numRegEx = (/^[-+]?(\d+(\.\d*)?|\.\d+)/)
+  var numRegEx = (/^[-+]?(\d+(\.\d*)?|\.\d+)/)
   var num = numRegEx.exec(input)
   if (!num) return null
   var node = { type: 'Literal', value: parseFloat(num[0], 10), raw: num[0] }
@@ -20,7 +20,7 @@ function numberParser (input) {
 }
 // matches words that do not match keywords
 function identifierParser (input) {
-  const idRegEx = (/^\w+/)
+  var idRegEx = (/^\w+/)
   var word = idRegEx.exec(input)
   if (!word || (/^\d/.test(word))) return null
   word = word.toString()
@@ -29,11 +29,20 @@ function identifierParser (input) {
   var varDict = variables.indexOf(word)
   input = input.replace(word, '')
   if (!!~varDict && variables[varDict + 1] == 'function') {
-    var expr = seParser(input)
-    input = expr[1]
-    node = { type: 'CallExpression', callee:
-                { type: 'Identifier', name: word }, arguments: expr[0].pop() }
-     }
+    expr = input ? seParser(input) : null
+    if(expr) {
+      if (typeof expr[0][0][0] === 'object') expr[0][0] = expr[0][0][0]
+      input = expr[1]
+      node = { type: 'ExpressionStatement', expression: {
+                type: 'CallExpression', callee:
+                  { type: 'Identifier', name: word }, arguments: expr[0] }
+             }
+    }
+    else node = { type: 'ExpressionStatement', expression: {
+              type: 'CallExpression', callee:
+                { type: 'Identifier', name: word }, arguments: ''}
+           }
+  }
   return [node, input]
 }
 
@@ -46,7 +55,7 @@ function stringParser (input) {
 }
 // looks for matching pre-defined keywords
 function keywordParser (input) {
-  const kwRegEx = (/^\w+|^[*+-<>%=\/]+/)
+  var kwRegEx = (/^\w+|^[*+-<>%=\/]+/)
   var word = kwRegEx.exec(input)
   if (!word || !~keywords.indexOf(word[0])) return null
   if (word[0] === 'const') return declaratorParser(input)
@@ -60,6 +69,7 @@ function declaratorParser (input) {
   input = input.replace('const', '')
   var expr = seParser(input)
   if (!expr) return null
+  if (typeof expr[0][1][0] === 'object') expr[0][1] = expr[0][1][0]
   var node = { type: 'VariableDeclaration', declarations: [{
     type: 'VariableDeclarator', id: expr[0][0], init: expr[0][1] }], kind: 'const'}
   return [node, expr[1]]
@@ -68,7 +78,7 @@ function declaratorParser (input) {
 function lambdaParser (input) {
   input = input.replace('=>', '')
   variables.push('function')
-  let expr = seParser(input)
+  var expr = seParser(input)
   if (!expr) return null
   var body = expr[0][0][expr[0][0].length - 1]
   expr[0][0].splice(-1, 1)
@@ -79,7 +89,7 @@ function lambdaParser (input) {
       body: { type: 'BlockStatement', body: [body] },
       generator: false, expression: true }
   } else {
-    var node = { type: 'ArrowFunctionExpression', id: null, params: expr[0][0],
+    node = { type: 'ArrowFunctionExpression', id: null, params: expr[0][0],
     body: body.pop(), generator: false, expression: true }
   }
   return [node, expr[1]]
@@ -91,11 +101,13 @@ function arithmeticParser (input) {
   var expr = seParser(input)
   if (!expr) return null
   if (expr[0].length < 3) var node = binaryParser(expr[0], operator)
-  else var node = reduceArr(expr[0], operator)
+  else node = reduceArr(expr[0], operator)
   return [node, expr[1]]
 }
 // two argument operations
 function binaryParser (input, word) {
+  if (typeof input[0][0] === 'object') input[0] = input[0][0]
+  if (typeof input[1][0] === 'object') input[1] = input[1][0]
   var node = { type: 'BinaryExpression', operator: word, left: input[0], right: input[1] }
   return node
 }
@@ -134,7 +146,7 @@ function ifParser (input) {
 }
 // selects and calls a single parser
 function atomParser (input) {
-  const selectedParser = parserSelector(keywordParser, identifierParser, numberParser, stringParser, expressionParser)
+  var selectedParser = parserSelector(keywordParser, identifierParser, numberParser, stringParser, expressionParser)
   var out = selectedParser(input)
   if (out) return out
   return null
@@ -160,16 +172,12 @@ function expressionParser (input) {
   input = expr[0]
   var out = seParser(input)
   var ast = out[0]
-  for (let nodes in ast) {
-    arr.push(ast[nodes])
-  }
+  for (let nodes in ast) arr.push(ast[nodes])
   if (expr[1]) {
     input = expr[1]
     out = seParser(input)
     ast = out[0]
-    for (let nodes in ast) {
-      arr.push(ast[nodes])
-    }
+    for (let nodes in ast) arr.push(ast[nodes])
     return [arr, out[1]]
   }
   return [arr, out[1]]
@@ -192,7 +200,6 @@ var parserSelector = (...parsers) => function (input) {
 }
 
 var escodegen = require('escodegen')
-var fs = require('fs')
 const readline = require('readline')
 const rl = readline.createInterface({
   input: process.stdin,
@@ -213,17 +220,17 @@ rl.on('line', (input) => {
   }
   else writeStream(consoleInput)
 })
-//writes input into js file adding appropriate lines
+// writes input into js file adding appropriate lines
 function writeStream (input) {
-  var fs = require('fs');
-  var stream = fs.createWriteStream("out.js");
-  stream.once('open', function(fd) {
-    for (inputs in consoleInput) {
+  var fs = require('fs')
+  var stream = fs.createWriteStream('out.js')
+  stream.once('open', function (fd) {
+    for (let inputs in consoleInput) {
       let firstWord = consoleInput[inputs].split(' ')
       firstWord = firstWord[0]
-      if (firstWord === 'const') stream.write(consoleInput[inputs] + '\n');
+      if (firstWord === 'const') stream.write(consoleInput[inputs] + '\n')
       else stream.write('console.log(' + consoleInput[inputs] + ')' + '\n')
     }
-    stream.end();
-  });
+    stream.end()
+  })
 }
