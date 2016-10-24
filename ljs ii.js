@@ -28,20 +28,10 @@ function identifierParser (input) {
   var node = { type: 'Identifier', name: word }
   var varDict = variables.indexOf(word)
   input = input.replace(word, '')
-  if (!!~varDict && variables[varDict + 1] == 'function') {
-    expr = input ? seParser(input) : null
-    if(expr) {
-      if (typeof expr[0][0][0] === 'object') expr[0][0] = expr[0][0][0]
-      input = expr[1]
-      node = { type: 'ExpressionStatement', expression: {
-                type: 'CallExpression', callee:
-                  { type: 'Identifier', name: word }, arguments: expr[0] }
-             }
-    }
-    else node = { type: 'ExpressionStatement', expression: {
-              type: 'CallExpression', callee:
-                { type: 'Identifier', name: word }, arguments: ''}
-           }
+  if (!!~varDict && variables[varDict + 1] === 'function') {
+    var node = functionCaller (input, word)
+    var input = node[1]
+    node = node[0]
   }
   return [node, input]
 }
@@ -69,7 +59,6 @@ function declaratorParser (input) {
   input = input.replace('const', '')
   var expr = seParser(input)
   if (!expr) return null
-  if (typeof expr[0][1][0] === 'object') expr[0][1] = expr[0][1][0]
   var node = { type: 'VariableDeclaration', declarations: [{
     type: 'VariableDeclarator', id: expr[0][0], init: expr[0][1] }], kind: 'const'}
   return [node, expr[1]]
@@ -84,13 +73,13 @@ function lambdaParser (input) {
   expr[0][0].splice(-1, 1)
   let count = 0
   for (keys in body) count++
-  if (count > 1) {
+  if (count > 4) {
     var node = { type: 'ArrowFunctionExpression', id: null, params: expr[0][0],
       body: { type: 'BlockStatement', body: [body] },
       generator: false, expression: true }
   } else {
     node = { type: 'ArrowFunctionExpression', id: null, params: expr[0][0],
-    body: body.pop(), generator: false, expression: true }
+    body: body, generator: false, expression: true }
   }
   return [node, expr[1]]
 }
@@ -141,8 +130,24 @@ function ifParser (input) {
   var expr = seParser(input)
   var node = { type: 'ExpressionStatement', expression:
     { type: 'ConditionalExpression', test: expr[0][0][0],
-      consequent: expr[0][0][1][0], alternate: expr[0][0][1][1].pop() }}
+      consequent: expr[0][0][1][0], alternate: expr[0][0][1][1] }}
   return [node, expr[1]]
+}
+
+function functionCaller (input, word)  {
+  expr = input ? seParser(input) : null
+  if(expr) {
+    input = expr[1]
+    node = { type: 'ExpressionStatement', expression: {
+              type: 'CallExpression', callee:
+                { type: 'Identifier', name: word }, arguments: expr[0] }
+           }
+  }
+  else node = { type: 'ExpressionStatement', expression: {
+            type: 'CallExpression', callee:
+              { type: 'Identifier', name: word }, arguments: ''}
+              }
+  return [node, '']
 }
 // selects and calls a single parser
 function atomParser (input) {
@@ -170,17 +175,17 @@ function expressionParser (input) {
   }
   if (flag === 0) expr = input.slice(1, i) + ' ' + input.substr(i + 1)
   input = expr[0]
-  var out = seParser(input)
+  var out = atomParser(input)
   var ast = out[0]
-  for (let nodes in ast) arr.push(ast[nodes])
+  arr.push(ast)
   if (expr[1]) {
     input = expr[1]
-    out = seParser(input)
+    out = atomParser(input)
     ast = out[0]
-    for (let nodes in ast) arr.push(ast[nodes])
+    arr.push(ast)
     return [arr, out[1]]
   }
-  return [arr, out[1]]
+  return [arr.pop(), out[1]]
 }
 // calls atom parser and stores ast for single expression
 function seParser (input) {
@@ -213,7 +218,7 @@ rl.on('line', (input) => {
   try { var solution = expressionParser(input)[0] }
   catch (err) { if (input !== 'exit') console.log('Incorrect Syntax Mate', err) }
   if (input !== 'exit') {
-    ast.body = solution
+    ast.body = [solution]
     var js = escodegen.generate(ast)
     while (!!~js.indexOf(';')) js = js.replace(';', '')
     consoleInput.push(js)
