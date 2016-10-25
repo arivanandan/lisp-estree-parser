@@ -255,7 +255,7 @@ const rl = readline.createInterface({
 rl.on('line', (input) => {
   input = input.trim()
   if (input === 'exit') rl.close()
-  try { var solution = superExpressionParser(input)[0] }
+  try { var solution = superExpressionParser(input) }
   catch (err) { if (input !== 'exit') console.log('Incorrect Syntax Mate', err) }
   if (input !== 'exit') {
     ast.body.push(solution)
