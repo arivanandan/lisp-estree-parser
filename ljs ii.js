@@ -2,8 +2,10 @@ const keywords = ['const', '=>', '*', '+', '-', '/', '<', '>', '<=', '>=', '%', 
 'length', 'abs', 'append', 'pow', 'min', 'max', 'round', 'not', 'quote']
 const unaryOperations = ['length', 'abs', 'round', 'not']
 const arithmeticOperators = ['*', '+', '-', '/', '%', '<', '>', '<=', '>=', 'pow', 'append']
+var ast = { 'type': 'Program', 'body': [], 'script': 'LISP' }
 var variables = []
 var consoleInput = []
+var lambdaDecFlag = 0
 
 function spaceParser (input) {
   var spaceRegEx = (/^\s+/)
@@ -49,7 +51,8 @@ function keywordParser (input) {
   var word = kwRegEx.exec(input)
   if (!word || !~keywords.indexOf(word[0])) return null
   if (word[0] === 'const') return declaratorParser(input)
-  if (word[0] === '=>') return lambdaParser(input)
+  if (word[0] === '=>' && lambdaDecFlag === 1) return lambdaParser(input)
+  if (word[0] === '=>') return lambdaIIFE(input)
   if (word[0] === 'if') return ifParser(input)
   if (!!~arithmeticOperators.indexOf(word[0])) return arithmeticParser(input)
   if (!!~unaryOperations.indexOf(word[0])) return unaryParser(input)
@@ -57,6 +60,7 @@ function keywordParser (input) {
 // declares variables with 'const'
 function declaratorParser (input) {
   input = input.replace('const', '')
+  if ((/=>/).test(input)) lambdaDecFlag = 1
   var expr = seParser(input)
   if (!expr) return null
   var node = { type: 'VariableDeclaration', declarations: [{
@@ -65,6 +69,7 @@ function declaratorParser (input) {
 }
 // returns arrow function expressions
 function lambdaParser (input) {
+  lamdaDecFlag = 0
   input = input.replace('=>', '')
   variables.push('function')
   var expr = seParser(input)
@@ -81,6 +86,20 @@ function lambdaParser (input) {
     node = { type: 'ArrowFunctionExpression', id: null, params: expr[0][0],
     body: body, generator: false, expression: true }
   }
+  return [node, expr[1]]
+}
+
+function lambdaIIFE (input) {
+  input = input.replace('=>', '')
+  var expr = seParser(input)
+  if (!expr) return null
+  node = { type: 'ExpressionStatement', expression: {
+            type: 'CallExpression', callee: {
+              type: 'ArrowFunctionExpression', id: null, params: [expr[0][0][0]],
+                body: expr[0][0][1][0], generator: false, expression: true },
+                  arguments: [expr[0][0][1][1]]
+              }
+          }
   return [node, expr[1]]
 }
 
@@ -212,27 +231,32 @@ const rl = readline.createInterface({
 rl.on('line', (input) => {
   input = input.trim()
   if (input === 'exit') rl.close()
-  var ast = { 'type': 'Program', 'body': [], 'script': 'LISP' }
   try { var solution = expressionParser(input)[0] }
   catch (err) { if (input !== 'exit') console.log('Incorrect Syntax Mate', err) }
   if (input !== 'exit') {
-    ast.body = [solution]
+    ast.body.push(solution)
+  }
+  else {
     var js = escodegen.generate(ast)
     while (!!~js.indexOf(';')) js = js.replace(';', '')
     consoleInput.push(js)
+    writeStream(consoleInput, ast)
   }
-  else writeStream(consoleInput)
 })
 // writes input into js file adding appropriate lines
-function writeStream (input) {
+function writeStream (input, ast) {
   var fs = require('fs')
+  fs.writeFile('ast.txt', JSON.stringify(ast, null, 2), function(err) {
+    if(err) return console.log(err)
+  })
   var stream = fs.createWriteStream('out.js')
   stream.once('open', function (fd) {
-    for (let inputs in consoleInput) {
-      let firstWord = consoleInput[inputs].split(' ')
+    input = input.toString().split('\n')
+    for (let statement in input) {
+      let firstWord = input[statement].split(' ')
       firstWord = firstWord[0]
-      if (firstWord === 'const') stream.write(consoleInput[inputs] + '\n')
-      else stream.write('console.log(' + consoleInput[inputs] + ')' + '\n')
+      if (firstWord === 'const') stream.write(input[statement] + '\n')
+      else stream.write('console.log(' + input[statement] + ')' + '\n')
     }
     stream.end()
   })
