@@ -8,28 +8,24 @@ var consoleInput = []
 var lambdaDecFlag = 0
 
 function spaceParser (input) {
-  var spaceRegEx = (/^\s+/)
-  if (spaceRegEx.test(input)) return [null, input.replace(spaceRegEx, '')]
-  return null
+  return (/^\s+/).test(input) ? [null, input.replace(/\s+/, '')] : null
 }
 
 function numberParser (input) {
-  var numRegEx = (/^[-+]?(\d+(\.\d*)?|\.\d+)/)
-  var num = numRegEx.exec(input)
-  if (!num) return null
-  var node = { type: 'Literal', value: parseFloat(num[0], 10), raw: num[0] }
-  return [node, input.replace(num[0], '')]
+  var numRegEx = /^[-+]?(\d+(\.\d*)?|\.\d+)/
+  return (num = numRegEx.exec(input))
+         ? [{ type: 'Literal', value: parseFloat(num[0], 10), raw: num[0] }, input.replace(num[0], '')]
+         : null
 }
 // matches words that do not match keywords
 function identifierParser (input) {
-  var idRegEx = (/^\w+/)
-  var word = idRegEx.exec(input)
-  if (!word || (/^\d/.test(word))) return null
-  word = word.toString()
+  var idRegEx = /^[a-zA-Z]/
+  if (!idRegEx.exec(input)) return null
+  word = input.split(' ')[0]
   variables.push(word)
+  input = input.replace(word, '')
   var node = { type: 'Identifier', name: word }
   var varDict = variables.indexOf(word)
-  input = input.replace(word, '')
   if (!!~varDict && variables[varDict + 1] === 'function') {
     var node = functionCaller (input, word)
     var input = node[1]
@@ -47,20 +43,16 @@ function stringParser (input) {
 }
 // looks for matching pre-defined keywords
 function keywordParser (input) {
-  var kwRegEx = (/^\w+|^[*+-<>%=\/]+/)
+  var kwRegEx = (/^[a-zA-Z]+|^[*+-<>%=\/]+/)
   var word = kwRegEx.exec(input)
   if (!word || !~keywords.indexOf(word[0])) return null
-  if (word[0] === 'const') return declaratorParser(input)
-  if (word[0] === '=>' && lambdaDecFlag === 1) return lambdaParser(input)
-  if (word[0] === '=>') return lambdaIIFE(input)
-  if (word[0] === 'if') return ifParser(input)
-  if (!!~arithmeticOperators.indexOf(word[0])) return arithmeticParser(input)
-  if (!!~unaryOperations.indexOf(word[0])) return unaryParser(input)
+  var selectedParser = parserSelector(declaratorParser, lambdaParser, ifParser, arithmeticParser, unaryParser)
+  return (out = selectedParser(input)) ? out : null
 }
 // declares variables with 'const'
 function declaratorParser (input) {
+  if (!input.startsWith('const')) return null
   input = input.replace('const', '')
-  if ((/=>/).test(input)) lambdaDecFlag = 1
   var expr = seParser(input)
   if (!expr) return null
   var node = { type: 'VariableDeclaration', declarations: [{
@@ -69,7 +61,7 @@ function declaratorParser (input) {
 }
 // returns arrow function expressions
 function lambdaParser (input) {
-  lamdaDecFlag = 0
+  if (!input.startsWith('=>')) return null
   input = input.replace('=>', '')
   variables.push('function')
   var expr = seParser(input)
@@ -92,6 +84,7 @@ function lambdaParser (input) {
 function lambdaIIFE (input) {
   input = input.replace('=>', '')
   var expr = seParser(input)
+  console.log(expr[0][0][1][1])
   if (!expr) return null
   node = { type: 'ExpressionStatement', expression: {
             type: 'CallExpression', callee: {
@@ -104,7 +97,8 @@ function lambdaIIFE (input) {
 }
 
 function arithmeticParser (input) {
-  var operator = input.split(' ').shift()
+  if (!~arithmeticOperators.indexOf(input.split(' ')[0])) return null
+  var operator = input.split(' ')[0]
   input = input.replace(operator, '')
   var expr = seParser(input)
   if (!expr) return null
@@ -134,6 +128,7 @@ function reduceArr (input, word) {
 }
 
 function unaryParser (input) {
+  if (!~unaryOperations.indexOf(input.split(' ')[0])) return null
   var operator = (/^\w+/).exec(input).toString()
   input = input.replace(operator, '')
   var expr = seParser(input)
@@ -143,6 +138,7 @@ function unaryParser (input) {
 }
 
 function ifParser (input) {
+  if (!input.startsWith('if')) return null
   input = input.replace('if', '')
   var expr = seParser(input)
   var node = { type: 'ExpressionStatement', expression:
@@ -215,6 +211,34 @@ function seParser (input) {
   }
   return [arr, input]
 }
+
+function superExpressionParser (input) {
+  input = input.slice(1, -1)
+  if (input.charAt(0) === '(') {
+    input = input.substr(1)
+    if (spaceParser(input)) input = spaceParser(input)
+    if (input.startsWith('=>')) {
+    input = '(' + input
+    var openingParen = 1                                                          // strips brackets, returns elements inside
+    var i = 1
+    var flag = 0
+    while (i < input.length) {
+      if (input.charAt(i) === '(') openingParen++
+      if (input.charAt(i) === ')') openingParen--
+      if (openingParen === 0) {
+        var expr = [input.slice(1, i), input.substr(i + 1)]
+        flag = 1
+        break
+      }
+      i++
+    }
+    if (flag === 0) expr = input.slice(1, i) + ' ' + input.substr(i + 1)
+    if(expr[1]) return lambdaIIFE(expr.join(' '))[0]
+  }
+  }
+  let ast = atomParser(input)[0]
+  return ast
+}
 // returns one parser that evaluates the next atom
 var parserSelector = (...parsers) => function (input) {
   if (spaceParser(input)) input = spaceParser(input)[1]
@@ -231,7 +255,7 @@ const rl = readline.createInterface({
 rl.on('line', (input) => {
   input = input.trim()
   if (input === 'exit') rl.close()
-  try { var solution = expressionParser(input)[0] }
+  try { var solution = superExpressionParser(input)[0] }
   catch (err) { if (input !== 'exit') console.log('Incorrect Syntax Mate', err) }
   if (input !== 'exit') {
     ast.body.push(solution)
