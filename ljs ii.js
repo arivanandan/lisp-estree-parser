@@ -5,7 +5,6 @@ const arithmeticOperators = ['*', '+', '-', '/', '%', '<', '>', '<=', '>=', 'pow
 var ast = { 'type': 'Program', 'body': [], 'script': 'LISP' }
 var variables = []
 var consoleInput = []
-var lambdaDecFlag = 0
 
 function spaceParser (input) {
   return (/^\s+/).test(input) ? [null, input.replace(/\s+/, '')] : null
@@ -84,7 +83,6 @@ function lambdaParser (input) {
 function lambdaIIFE (input) {
   input = input.replace('=>', '')
   var expr = seParser(input)
-  console.log(expr[0][0][1][1])
   if (!expr) return null
   node = { type: 'ExpressionStatement', expression: {
             type: 'CallExpression', callee: {
@@ -187,10 +185,17 @@ function expressionParser (input) {
     i++
   }
   if (flag === 0) expr = input.slice(1, i) + ' ' + input.substr(i + 1)
+  /* if (!expr[0]) {
+    expr[0] = expr[1]
+    expr[1] = ''
+  } */
   input = expr[0]
-  var out = atomParser(input)
-  var ast = out[0]
-  arr.push(ast)
+  if(!input) out = ''
+  else {
+    var out = atomParser(input)
+    var ast = out[0]
+    arr.push(ast)
+  }
   if (expr[1]) {
     input = expr[1]
     out = atomParser(input)
@@ -263,11 +268,13 @@ rl.on('line', (input) => {
   else {
     var js = escodegen.generate(ast)
     while (!!~js.indexOf(';')) js = js.replace(';', '')
+    if (!!~js.indexOf('reduce')) js = js.replace(/\n/g, '')
     consoleInput.push(js)
     writeStream(consoleInput, ast)
   }
 })
-// writes input into js file adding appropriate lines
+// writes input into out.js file adding appropriate lines
+// writes ast into ast.txt
 function writeStream (input, ast) {
   var fs = require('fs')
   fs.writeFile('ast.txt', JSON.stringify(ast, null, 2), function(err) {
