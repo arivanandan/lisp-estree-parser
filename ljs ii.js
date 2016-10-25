@@ -95,8 +95,6 @@ function arithmeticParser (input) {
 }
 // two argument operations
 function binaryParser (input, word) {
-  if (typeof input[0][0] === 'object') input[0] = input[0][0]
-  if (typeof input[1][0] === 'object') input[1] = input[1][0]
   var node = { type: 'BinaryExpression', operator: word, left: input[0], right: input[1] }
   return node
 }
