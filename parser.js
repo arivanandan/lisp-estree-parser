@@ -99,18 +99,22 @@ module.exports = function (input) {
   function lambdaParser (input) {
     if (!(/^\s*\(*\s*=>/.exec(input))) return null
     input = input.replace(/\s*\(*\s*=>/, '')
+    variables.push('function')
     const expr = expressionParser(input)
     if (!expr) return null
-    const node = { type: 'ArrowFunctionExpression', id: null, params: expr[0][0],
+    const node = { type: 'ArrowFunctionExpression', id: null, params: expr[0][0] || '',
       body: '', generator: false, expression: true }
     const body = expr[0][1][0] ? expr[0][1][0] : expr[0][1]
-    Object.keys(body).length > 4 ? node.body = { type: 'BlockStatement', body: [body] }
+    Object.keys(body).length > 4
+              ? node.body = { type: 'BlockStatement', body: [body] }
               : node.body = body
     return [node, expr[1]]
   }
 
   function functionCallParser (input) {
-    const word = input.replace(/^\s*\(*\s*/, '').split(' ')[0]
+    const word = input.replace(/^\s*\(*\s*/, '').split(' ')[0].replace(/\)/, '')
+    const varDict = variables.indexOf(word)
+    if (!~varDict || variables[varDict + 1] !== 'function') return null
     input = input.replace(word, '')
     const expr = expressionParser(input)
     if (!expr) return null
@@ -151,8 +155,8 @@ module.exports = function (input) {
     while (input.length > 0) {
       if (/^\)+/.exec(input)) input = input.replace(/\)+/, '')
       const expr = parserFactory(seParser, declaratorParser, ifParser,
-        arithmeticParser, unaryParser, lambdaParser, identifierParser,
-        numberParser, booleanParser, stringParser)(input)
+        arithmeticParser, unaryParser, lambdaParser, functionCallParser,
+        identifierParser, numberParser, booleanParser, stringParser)(input)
       if (expr) {
         input = expr[1].toString()
         arr.push(expr[0])
@@ -182,7 +186,7 @@ module.exports = function (input) {
     if (/^\s*\(*\s*const/.exec(input)) return declaratorParser(input)[0]
     if (/^\s*\(*\s*=>/.exec(input)) return lambdaIIFEParser(input)[0]
     if (/^\s*\(*\s*if/.exec(input)) return ifParser(input)[0]
-    if (!!~variables.indexOf(input.replace(/^\s*\(*\s*/, '').split(' ')[0]))
+    if (!!~variables.indexOf(input.slice(1, -1).split(' ')[0]))
       return functionCallParser(input)[0]
     expressionParser(input)[0].forEach(function (atom) {
       body.push(atom)
