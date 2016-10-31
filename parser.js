@@ -69,7 +69,7 @@ module.exports = function (input) {
   }
 //reduce function for operations with more than 2 arguments
   function reduceArr (input, word) {
-    const node = { type: 'ExpressionStatement',
+    return { type: 'ExpressionStatement',
       expression: { type: 'CallExpression',
         callee: { type: 'MemberExpression', computed: false,
         object: { type: 'ArrayExpression', elements: input },
@@ -80,7 +80,6 @@ module.exports = function (input) {
       body: { type: 'BinaryExpression', operator: word,
         left: { type: 'Identifier', name: 'x' },
         right: { type: 'Identifier', name: 'y' }}}]}}
-    return node
   }
 
   function declaratorParser (input) {
@@ -104,7 +103,8 @@ module.exports = function (input) {
     const node = { type: 'ArrowFunctionExpression', id: null, params: expr[0][0],
       body: '', generator: false, expression: true }
     const body = expr[0][1][0] ? expr[0][1][0] : expr[0][1]
-    Object.keys(body).length > 4 ? node.body = { type: 'BlockStatement', body: [body] }
+    Object.keys(body).length > 4 
+              ? node.body = { type: 'BlockStatement', body: [body] }
               : node.body = body
     return [node, expr[1]]
   }
