@@ -17,7 +17,6 @@ rl.on('line', (input) => {
   } else {
     var solution = parser(consoleInput.trim())
     ast.body = solution
-    console.log(JSON.stringify(ast, null, 2))
     var js = escodegen.generate(ast)
     while (!!~js.indexOf(';')) js = js.replace(';', '')
     if (!!~js.indexOf('reduce')) js = js.replace(/\n/g, '')
