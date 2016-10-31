@@ -1,6 +1,7 @@
 var parser = require('./parser')
-var ast = { type: 'Program', body: [], sourceType: 'script' }
+var ast = { type: 'Program', body: '', sourceType: 'script' }
 var consoleInput = []
+var jsOut = []
 
 const escodegen = require('escodegen')
 const readline = require('readline')
@@ -10,26 +11,25 @@ const rl = readline.createInterface({
 })
 // repl
 rl.on('line', (input) => {
-  input = input.trim()
   if (input === 'exit') rl.close()
-  try { var solution = parser(input) }
-  catch (err) { if (input !== 'exit') console.log('Incorrect Syntax Mate', err) }
   if (input !== 'exit') {
-    ast.body.push(solution.pop())
-  }
-  else {
+    consoleInput += input + '\n'
+  } else {
+    var solution = parser(consoleInput.trim())
+    ast.body = solution
+    console.log(JSON.stringify(ast, null, 2))
     var js = escodegen.generate(ast)
     while (!!~js.indexOf(';')) js = js.replace(';', '')
     if (!!~js.indexOf('reduce')) js = js.replace(/\n/g, '')
-    consoleInput.push(js)
-    writeStream(consoleInput, ast)
+    jsOut.push(js)
+    writeStream(jsOut, ast)
   }
 })
 // writes input into out.js file adding appropriate lines
 // writes ast into ast.txt
 function writeStream (input, ast) {
   var fs = require('fs')
-  fs.writeFile('ast.txt', JSON.stringify(ast, null, 2), function(err) {
+  fs.writeFile('ast.txt', JSON.stringify(ast, null, 2), function (err) {
     if(err) return console.log(err)
   })
   var stream = fs.createWriteStream('out.js')
