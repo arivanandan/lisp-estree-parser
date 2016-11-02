@@ -1,9 +1,9 @@
 module.exports = function (input) {
   const unaryOperations = ['length', 'abs', 'round', 'not', 'min', 'max', 'round', 'quote']
   const arithmeticOperators = ['*', '+', '-', '/', '%', '<', '>', '<=', '>=', 'pow', 'append']
-  const variables = []                                              //stores identifiers in interpreted program
-  const body = []                                                   //stores body of single expression statement
-  const astBody = []                                                //stores generated ast of entire program
+  const variables = []                                              // stores identifiers in interpreted program
+  const body = []                                                   // stores body of single expression statement
+  const astBody = []                                                // stores generated ast of entire program
 
   function spaceParser (input) {
     return (/^\s+/).test(input) ? [null, input.replace(/\s+/, '')] : null
@@ -11,6 +11,7 @@ module.exports = function (input) {
 
   function numberParser (input) {
     const numRegEx = /^[-+]?(\d+(\.\d*)?|\.\d+)/
+    let num
     return (num = numRegEx.exec(input))
       ? [{ type: 'Literal', value: parseFloat(num[0], 10), raw: num[0] },
         input.replace(numRegEx, '')]
@@ -47,6 +48,7 @@ module.exports = function (input) {
     if (!~arithmeticOperators.indexOf(operator)) return null
     const expr = expressionParser(input.replace(/^\s*\(*\s*/, '').replace(operator, ''))
     if (!expr) return null
+    let node
     if (expr[0].length < 3) node = binaryParser(expr[0], operator)
     else node = reduceArr(expr[0], operator)
     return [node, expr[1]]
@@ -67,7 +69,7 @@ module.exports = function (input) {
     node.right = input[1][0] ? input[1][0] : input[1]
     return node
   }
-//reduce function for operations with more than 2 arguments
+// reduce function for operations with more than 2 arguments
   function reduceArr (input, word) {
     return { type: 'ExpressionStatement',
       expression: { type: 'CallExpression',
@@ -149,7 +151,7 @@ module.exports = function (input) {
     node.expression.alternate = expr[0][2][0] ? expr[0][2][0] : expr[0][2]
     return [node, expr[1]]
   }
-//loops through until all the tokens in an expression are consumed
+// loops through until all the tokens in an expression are consumed
   function expressionParser (input) {
     let arr = []
     while (input.length > 0) {
@@ -165,7 +167,7 @@ module.exports = function (input) {
     }
     return [arr, input]
   }
-//interprets subexpressions (i.e expressions within brackets)
+// interprets subexpressions (i.e expressions within brackets)
   function seParser (input) {
     if (!(/^\s*\(/).test(input)) return null
     if (spaceParser(input)) input = spaceParser(input)[1]
@@ -176,24 +178,25 @@ module.exports = function (input) {
       if (openingParen === 0) return [expressionParser(input.slice(1, i))[0], input.substr(i + 1)]
     }
   }
-//accepts list of parsers, returns appropriate parser
+// accepts list of parsers, returns appropriate parser
   const parserFactory = (...parsers) => function (input) {
     if (spaceParser(input)) input = spaceParser(input)[1]
     return parsers.reduce((acc, parser) => acc === null ? parser(input) : acc, null)
   }
-//tries the 4 main parsers; alternatively calls the expressionParser which tries the rest
+// tries the 4 main parsers; alternatively calls the expressionParser which tries the rest
   function sExpressionParser (input) {
     if (/^\s*\(*\s*const/.exec(input)) return declaratorParser(input)[0]
     if (/^\s*\(*\s*=>/.exec(input)) return lambdaIIFEParser(input)[0]
     if (/^\s*\(*\s*if/.exec(input)) return ifParser(input)[0]
-    if (!!~variables.indexOf(input.slice(1, -1).split(' ')[0]))
+    if (!!~variables.indexOf(input.slice(1, -1).split(' ')[0])) {
       return functionCallParser(input)[0]
+    }
     expressionParser(input)[0].forEach(function (atom) {
       body.push(atom)
     })
     return body
   }
-//splits the program with /newline and passes them one by one
+// splits the program with /newline and passes them one by one
   function programParser (input) {
     input = input.split('\n')
     for (let i = 0; i < input.length; i++) {
