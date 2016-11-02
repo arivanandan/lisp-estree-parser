@@ -29,7 +29,7 @@ rl.on('line', (input) => {
 function writeStream (input, ast) {
   var fs = require('fs')
   fs.writeFile('ast.txt', JSON.stringify(ast, null, 2), function (err) {
-    if(err) return console.log(err)
+    if (err) return console.log(`Error in Execution\n   `, err)
   })
   var stream = fs.createWriteStream('out.js')
   stream.once('open', function (fd) {
