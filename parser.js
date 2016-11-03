@@ -1,8 +1,6 @@
 module.exports = function (input) {
   const unaryOperations = ['length', 'abs', 'round', 'not', 'min', 'max', 'round', 'quote']
   const arithmeticOperators = ['*', '+', '-', '/', '%', '<', '>', '<=', '>=', 'pow', 'append']
-  const variables = []                                              // stores identifiers in interpreted program
-  const body = []                                                   // stores body of single expression statement
   const astBody = []                                                // stores generated ast of entire program
 
   function spaceParser (input) {
@@ -22,7 +20,6 @@ module.exports = function (input) {
     const idRegEx = /^[a-z\~]+[a-z0-9_\[\]\.\*]*/i
     if (!idRegEx.exec(input)) return null
     const word = idRegEx.exec(input)[0]
-    variables.push(word)
     const node = { type: 'Identifier', name: word }
     return [node, input.replace(word, '')]
   }
@@ -101,12 +98,13 @@ module.exports = function (input) {
   function lambdaParser (input) {
     if (!(/^\s*\(*\s*=>/.exec(input))) return null
     input = input.replace(/\s*\(*\s*=>/, '')
-    variables.push('function')
-    const expr = expressionParser(input)
+    const paramsRaw = input.match(/\s*\(.?\)/)[0]
+    const params = expressionParser(paramsRaw.replace(/\s*[\(\)]/g, ''))
+    const expr = expressionParser(input.replace(paramsRaw, ''))
     if (!expr) return null
-    const node = { type: 'ArrowFunctionExpression', id: null, params: expr[0][0] || '',
+    const node = { type: 'ArrowFunctionExpression', id: null, params: params[0] || '',
       body: '', generator: false, expression: true }
-    const body = expr[0][1][0] ? expr[0][1][0] : expr[0][1]
+    const body = expr[0][0] ? expr[0][0] : expr[0]
     Object.keys(body).length > 4
               ? node.body = { type: 'BlockStatement', body: [body] }
               : node.body = body
@@ -115,27 +113,22 @@ module.exports = function (input) {
 
   function functionCallParser (input) {
     const word = input.replace(/^\s*\(*\s*/, '').split(' ')[0].replace(/\)/, '')
-    const varDict = variables.indexOf(word)
-    if (!~varDict || variables[varDict + 1] !== 'function') return null
-    input = input.replace(word, '')
-    const expr = expressionParser(input)
-    if (!expr) return null
     const node = { type: 'ExpressionStatement', expression: {
-      type: 'CallExpression', callee: { type: 'Identifier', name: word },
-      arguments: expr[0].pop() || '' }}
-    return [node, expr[1]]
-  }
-
-  function lambdaIIFEParser (input) {
-    input = input.replace(/^\s*\(*\s*=>/, '')
-    const expr = expressionParser(input)
-    if (!expr) return null
-    const node = { type: 'ExpressionStatement', expression: {
-      type: 'CallExpression', callee: {
-        type: 'ArrowFunctionExpression', id: null, params: expr[0][0],
-        body: '', generator: false, expression: true },
-      arguments: [expr[0][2]] }}
-    node.expression.callee.body = expr[0][1][0] ? expr[0][1][0] : expr[0][1]
+      type: 'CallExpression', callee: ''}}
+    if (word !== '=>') {                                            //function calls
+      input = input.replace(/^\s*\(*\s*/, '').replace(word, '')
+      var expr = expressionParser(input)
+      node.expression.callee = { type: 'Identifier', name: word }
+      node.expression.arguments = expr[0] || ''
+    }
+    else {                                                          //IIEF
+      input = input.slice(0, -1)
+      const args = input.substr(input.lastIndexOf(')'))
+      input = input.substring(0, input.lastIndexOf(')'))
+      var expr = expressionParser(args)
+      node.expression.callee = lambdaParser(input)[0]
+      node.expression.arguments = expr[0] || ''
+    }
     return [node, expr[1]]
   }
 
@@ -156,9 +149,8 @@ module.exports = function (input) {
     let arr = []
     while (input.length > 0) {
       if (/^\)+/.exec(input)) input = input.replace(/\)+/, '')
-      const expr = parserFactory(seParser, declaratorParser, ifParser,
-        arithmeticParser, unaryParser, lambdaParser, functionCallParser,
-        identifierParser, numberParser, booleanParser, stringParser)(input)
+      const expr = parserFactory(lambdaParser, seParser, identifierParser, numberParser,
+                    booleanParser, stringParser)(input)
       if (expr) {
         input = expr[1].toString()
         arr.push(expr[0])
@@ -175,7 +167,7 @@ module.exports = function (input) {
     for (let i = 0; i < input.length; i++) {
       if (input.charAt(i) === '(') openingParen++
       if (input.charAt(i) === ')') openingParen--
-      if (openingParen === 0) return [expressionParser(input.slice(1, i))[0], input.substr(i + 1)]
+      if (openingParen === 0) return [sExpressionParser(input.slice(1, i)), input.substr(i + 1)]
     }
   }
 // accepts list of parsers, returns appropriate parser
@@ -183,18 +175,14 @@ module.exports = function (input) {
     if (spaceParser(input)) input = spaceParser(input)[1]
     return parsers.reduce((acc, parser) => acc === null ? parser(input) : acc, null)
   }
-// tries the 4 main parsers; alternatively calls the expressionParser which tries the rest
+// tries the 4 main parsers
   function sExpressionParser (input) {
     if (/^\s*\(*\s*const/.exec(input)) return declaratorParser(input)[0]
-    if (/^\s*\(*\s*=>/.exec(input)) return lambdaIIFEParser(input)[0]
     if (/^\s*\(*\s*if/.exec(input)) return ifParser(input)[0]
-    if (!!~variables.indexOf(input.slice(1, -1).split(' ')[0])) {
-      return functionCallParser(input)[0]
+    if (!!~arithmeticOperators.indexOf(input.replace(/^\s*\(*\s*/, '').split(' ')[0])) {
+      return arithmeticParser(input)[0]
     }
-    expressionParser(input)[0].forEach(function (atom) {
-      body.push(atom)
-    })
-    return body
+    return functionCallParser(input)[0]
   }
 // splits the program with /newline and passes them one by one
   function programParser (input) {
