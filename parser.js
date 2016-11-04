@@ -115,18 +115,15 @@ module.exports = function (input) {
     const word = input.replace(/^\s*\(*\s*/, '').split(' ')[0].replace(/\)/, '')
     const node = { type: 'ExpressionStatement', expression: {
       type: 'CallExpression', callee: ''}}
-    if (word !== '=>') {                                            //function calls
-      input = input.replace(/^\s*\(*\s*/, '').replace(word, '')
-      const expr = expressionParser(input)
+    if (word !== '=>') {                                                        // function calls
+      const expr = expressionParser(input.replace(/^\s*\(*\s*/, '').replace(word, ''))
       node.expression.callee = { type: 'Identifier', name: word }
       node.expression.arguments = expr[0] || ''
       return [node, expr[1]]
-    }                                                          
-    input = input.slice(0, -1)                                      //IIEF
-    const args = input.substr(input.lastIndexOf(')'))
-    input = input.substring(0, input.lastIndexOf(')'))
-    const expr = expressionParser(args)
-    node.expression.callee = lambdaParser(input)[0]
+    }
+    input = input.slice(0, -1)                                                  // IIEF
+    const expr = expressionParser(input.substr(input.lastIndexOf(')')))
+    node.expression.callee = lambdaParser(input.substring(0, input.lastIndexOf(')')))[0]
     node.expression.arguments = expr[0] || ''
     return [node, expr[1]]
   }
@@ -148,7 +145,7 @@ module.exports = function (input) {
     let arr = []
     while (input.length > 0) {
       if (/^\)+/.exec(input)) input = input.replace(/\)+/, '')
-      const expr = parserFactory(lambdaParser, seParser, identifierParser, numberParser,
+      const expr = parserFactory(unaryParser, lambdaParser, seParser, identifierParser, numberParser,
                     booleanParser, stringParser)(input)
       if (expr) {
         input = expr[1].toString()
