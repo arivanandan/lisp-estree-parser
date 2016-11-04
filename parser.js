@@ -117,18 +117,17 @@ module.exports = function (input) {
       type: 'CallExpression', callee: ''}}
     if (word !== '=>') {                                            //function calls
       input = input.replace(/^\s*\(*\s*/, '').replace(word, '')
-      var expr = expressionParser(input)
+      const expr = expressionParser(input)
       node.expression.callee = { type: 'Identifier', name: word }
       node.expression.arguments = expr[0] || ''
-    }
-    else {                                                          //IIEF
-      input = input.slice(0, -1)
-      const args = input.substr(input.lastIndexOf(')'))
-      input = input.substring(0, input.lastIndexOf(')'))
-      var expr = expressionParser(args)
-      node.expression.callee = lambdaParser(input)[0]
-      node.expression.arguments = expr[0] || ''
-    }
+      return [node, expr[1]]
+    }                                                          
+    input = input.slice(0, -1)                                      //IIEF
+    const args = input.substr(input.lastIndexOf(')'))
+    input = input.substring(0, input.lastIndexOf(')'))
+    const expr = expressionParser(args)
+    node.expression.callee = lambdaParser(input)[0]
+    node.expression.arguments = expr[0] || ''
     return [node, expr[1]]
   }
 
