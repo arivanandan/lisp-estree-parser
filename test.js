@@ -18,10 +18,16 @@ rl.on('line', (input) => {
     var solution = parser(consoleInput.trim())
     ast.body = solution
     var js = escodegen.generate(ast)
-    while (!!~js.indexOf(';')) js = js.replace(';', '')
-    if (!!~js.indexOf('reduce')) js = js.replace(/\n/g, '')
-    jsOut.push(js)
-    writeStream(jsOut, ast)
+    js = js.replace(/\n/g, '').replace(/;/g, '\n').trim()
+    js = js.split('\n')
+    while (js.length > 0) {
+      if (js[0].charAt(0) === ' ') {
+        jsOut[jsOut.length - 1] += js.shift()
+        continue
+      }
+      jsOut.push(js.shift())
+    }
+    writeStream(jsOut.join('\n'), ast)
   }
 })
 // writes input into out.js file adding appropriate lines
@@ -37,7 +43,7 @@ function writeStream (input, ast) {
     for (let statement in input) {
       let firstWord = input[statement].split(' ')
       firstWord = firstWord[0]
-      if (firstWord === 'const') stream.write(input[statement] + '\n')
+      if (firstWord === 'const' || firstWord.length === 0) stream.write(input[statement] + '\n')
       else stream.write('console.log(' + input[statement] + ')' + '\n')
     }
     stream.end()
