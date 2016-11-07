@@ -1,43 +1,27 @@
 module.exports = function (input) {
-  const unaryOperations = ['length', 'abs', 'round', 'not', 'min', 'max', 'round', 'quote']
-  const arithmeticOperators = ['*', '+', '-', '/', '%', '<', '>', '<=', '>=', 'pow', 'append']
-  const astBody = []                                                // stores generated ast of entire program
+  const unaryOperators = ['length', 'abs', 'round', 'not', 'min', 'max', 'round', 'quote'],
+        arithmeticOperators = ['*', '+', '-', '/', '%', '<', '>', '<=', '>=', 'pow', 'append'],
+        astBody = []                                                // stores generated ast of entire program
 
   function spaceParser (input) {
     return (/^\s+/).test(input) ? [null, input.replace(/\s+/, '')] : null
   }
 
   function numberParser (input) {
-    const numRegEx = /^[-+]?(\d+(\.\d*)?|\.\d+)/
-    let num
-    return (num = numRegEx.exec(input))
-      ? [{ type: 'Literal', value: parseFloat(num[0], 10), raw: num[0] },
-        input.replace(numRegEx, '')]
-      : null
+      return [{ type: 'Literal', value: parseFloat(input[1], 10), raw: input[1] },
+        input[input.length - 1]]
   }
 
   function identifierParser (input) {
-    const idRegEx = /^[a-z\~]+[a-z0-9_\[\]\.\*]*/i
-    if (!idRegEx.exec(input)) return null
-    const word = idRegEx.exec(input)[0]
-    const node = { type: 'Identifier', name: word }
-    return [node, input.replace(word, '')]
+    return [{ type: 'Identifier', name: input[1] }, input[input.length -1]]
   }
 
   function stringParser (input) {
-    if (input.charAt(0) !== '"') return null
-    let str = input.substring(1, input.lastIndexOf('"'))
-    const node = { type: 'StringLiteral', value: str }
-    str = '"' + str + '"'
-    return [node, input.replace(str, '')]
+    return [{ type: 'StringLiteral', value: '"' + input[1] + '"' }, input[input.length - 1]]
   }
 
   function booleanParser (input) {
-    if (!/^true|false/.test(input)) return null
-    const node = {type: 'Literal', value: ''}
-    if (input.startsWith('false')) node.value = false
-    if (input.startsWith('false')) node.value = true
-    return [node, input.split(' ').slice(1).toString()]
+    return [{type: 'Literal', value: input[1]}, input[input.length - 1]]
   }
 
   function arithmeticParser (input) {
@@ -53,7 +37,7 @@ module.exports = function (input) {
 
   function unaryParser (input) {
     const operator = input.replace(/^\s*\(*\s*/, '').split(' ')[0]
-    if (!~unaryOperations.indexOf(operator)) return null
+    if (!~unaryOperators.indexOf(operator)) return null
     const expr = expressionParser(input.replace(operator, ''))
     if (!expr) return null
     const node = { type: 'Expression', operator: operator, arg: expr[0] }
@@ -83,7 +67,6 @@ module.exports = function (input) {
 
   function declaratorParser (input) {
     const constRegEx = /^\s*\(*\s*const/
-    if (!constRegEx.exec(input)) return null
     const expr = expressionParser(input.replace(constRegEx, ''))
     if (!expr) return null
     const node = { type: 'VariableDeclaration', declarations: [{
@@ -96,8 +79,7 @@ module.exports = function (input) {
   }
 
   function lambdaParser (input) {
-    if (!(/^\s*\(*\s*=>/.exec(input))) return null
-    input = input.replace(/\s*\(*\s*=>/, '')
+    input = input[0].replace(/\s*\(?\s*=>/, '')
     const paramsRaw = input.match(/\s*\(.?\)/)[0]
     const params = expressionParser(paramsRaw.replace(/\s*[\(\)]/g, ''))
     const expr = expressionParser(input.replace(paramsRaw, ''))
@@ -145,8 +127,15 @@ module.exports = function (input) {
     let arr = []
     while (input.length > 0) {
       if (/^\)+/.exec(input)) input = input.replace(/\)+/, '')
-      const expr = parserFactory(unaryParser, lambdaParser, seParser, identifierParser, numberParser,
-                    booleanParser, stringParser)(input)
+      if (spaceParser(input)) input = spaceParser(input)[1]
+      const [parser, val] = regExFactory([lambdaParser, /^(\(*\s*=>.+)(.*)/],
+                              [seParser, /^\(/],
+                              [identifierParser, /^([a-z\~]+[a-z0-9_\[\]\.\*]*)(.*)$/i],
+                              [numberParser, /^([-+]?(\d+(\.\d*)?|\.\d+))(.*)$/],
+                              [booleanParser, /^(true|false)(.*)$/],
+                              [stringParser, /^(".+")(.*)/])(input)
+      let expr
+      if (val) expr = parser(val)
       if (expr) {
         input = expr[1].toString()
         arr.push(expr[0])
@@ -157,27 +146,27 @@ module.exports = function (input) {
   }
 // interprets subexpressions (i.e expressions within brackets)
   function seParser (input) {
-    if (!(/^\s*\(/).test(input)) return null
-    if (spaceParser(input)) input = spaceParser(input)[1]
     let openingParen = 0
-    for (let i = 0; i < input.length; i++) {
-      if (input.charAt(i) === '(') openingParen++
-      if (input.charAt(i) === ')') openingParen--
-      if (openingParen === 0) return [sExpressionParser(input.slice(1, i)), input.substr(i + 1)]
+    for (let i = 0; i < input.input.length; i++) {
+      if (input.input.charAt(i) === '(') openingParen++
+      if (input.input.charAt(i) === ')') openingParen--
+      if (openingParen === 0) return [sExpressionParser(input.input.slice(1, i)), input.input.substr(i + 1)]
     }
   }
-// accepts list of parsers, returns appropriate parser
-  const parserFactory = (...parsers) => function (input) {
+// matches with regExs and calls the function matching the regEx
+  const regExFactory = (...regEx) => input => {
     if (spaceParser(input)) input = spaceParser(input)[1]
-    return parsers.reduce((acc, parser) => acc === null ? parser(input) : acc, null)
-  }
-// tries the 4 main parsers
+    return regEx.reduce((acc, regEx) => acc[1] === null
+                        ? [regEx[0], regEx[1].exec(input)]
+                        : acc, [null, null]) }
+// tries the main parsers
   function sExpressionParser (input) {
     if (/^\s*\(*\s*const/.exec(input)) return declaratorParser(input)[0]
     if (/^\s*\(*\s*if/.exec(input)) return ifParser(input)[0]
-    if (!!~arithmeticOperators.indexOf(input.replace(/^\s*\(*\s*/, '').split(' ')[0])) {
+    if (!!~arithmeticOperators.indexOf(input.replace(/^\s*\(*\s*/, '').split(' ')[0]))
       return arithmeticParser(input)[0]
-    }
+    if (!!~unaryOperators.indexOf(input.replace(/^\s*\(*\s*/, '').split(' ')[0]))
+      return unaryParser(input)[0]
     return functionCallParser(input)[0]
   }
 // splits the program with /newline and passes them one by one
@@ -188,6 +177,5 @@ module.exports = function (input) {
     }
     return astBody
   }
-
   return programParser(input)
 }
