@@ -1,7 +1,7 @@
-var parser = require('./parser')
-var ast = { type: 'Program', body: '', sourceType: 'script' }
-var consoleInput = []
-var jsOut = []
+const parser = require('./parser')
+const ast = { type: 'Program', body: '', sourceType: 'script' }
+let consoleInput = []
+let jsOut = []
 
 const escodegen = require('escodegen')
 const readline = require('readline')
@@ -17,7 +17,12 @@ rl.on('line', (input) => {
   } else {
     var solution = parser(consoleInput.trim())
     ast.body = solution
-    var js = escodegen.generate(ast)
+    try {
+      var js = escodegen.generate(ast)
+    } catch (e) {
+      console.log(`You probably put some brackets in the wrong places, or..
+This program doesn't have the particular functionality`)
+    }
     js = js.replace(/\n/g, '').replace(/;/g, '\n').trim()
     js = js.split('\n')
     while (js.length > 0) {
